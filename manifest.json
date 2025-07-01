@@ -1,0 +1,26 @@
+{
+  "manifest_version": 3,
+  "name": "Webpage Notes & Summarizer",
+  "version": "1.0",
+  "description": "Take notes from webpages, store with date/time, and summarize with Gemini API.",
+  "permissions": ["storage", "activeTab", "scripting","contextMenus"],
+  "host_permissions": ["<all_urls>"],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icon16.webp",
+      "48": "icon48.png",
+      "128": "icon144.jpeg"
+    }
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+} 
