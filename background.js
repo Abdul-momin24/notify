@@ -43,3 +43,33 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     });
   }
 });
+
+// Open note window when extension icon is clicked
+chrome.action.onClicked.addListener(() => {
+  const width = 400;
+  const height = 500;
+  // Get screen dimensions for positioning
+  chrome.system.display.getInfo((displays) => {
+    const display = displays[0];
+    const left = display.workArea.width - width - 20;
+    const top = display.workArea.height - height - 20;
+    chrome.windows.create({
+      url: chrome.runtime.getURL('home.html'),
+      type: 'popup',
+      width,
+      height,
+      left,
+      top,
+      focused: true
+    });
+  });
+});
+
+// Listen for hotkey command to show the floating note widget
+chrome.commands.onCommand.addListener((command) => {
+  if (command === "toggle_note_widget") {
+    chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
+      chrome.tabs.sendMessage(tabs[0].id, {type: "SHOW_NOTE_WIDGET"});
+    });
+  }
+});

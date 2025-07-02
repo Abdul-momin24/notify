@@ -3,10 +3,9 @@
   "name": "Webpage Notes & Summarizer",
   "version": "1.0",
   "description": "Take notes from webpages, store with date/time, and summarize with Gemini API.",
-  "permissions": ["storage", "activeTab", "scripting","contextMenus"],
+  "permissions": ["storage", "activeTab", "scripting", "contextMenus", "system.display"],
   "host_permissions": ["<all_urls>"],
   "action": {
-    "default_popup": "popup.html",
     "default_icon": {
       "16": "icon16.webp",
       "48": "icon48.png",
@@ -22,5 +21,20 @@
       "js": ["content.js"],
       "run_at": "document_idle"
     }
-  ]
+  ],
+  "commands": {
+    "toggle_note_widget": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+Y",
+        "mac": "Command+Shift+Y"
+      },
+      "description": "Show the floating note widget"
+    },
+    "speech_to_text": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+M"
+      },
+      "description": "Toggle speech-to-text for note input"
+    }
+  }
 } 
