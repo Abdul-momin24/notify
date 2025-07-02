@@ -54,7 +54,7 @@ chrome.action.onClicked.addListener(() => {
     const left = display.workArea.width - width - 20;
     const top = display.workArea.height - height - 20;
     chrome.windows.create({
-      url: chrome.runtime.getURL('home.html'),
+      url: chrome.runtime.getURL('../pages/home.html'),
       type: 'popup',
       width,
       height,

@@ -162,6 +162,9 @@ document.getElementById('tab-actions').addEventListener('click', () => showSecti
 showSection('current');
 
 // Action Items logic
+function stripActionPrefix(text) {
+  return text.replace(/^\s*(Action Task:|Action:)\s*/i, '');
+}
 function renderActionItems(items) {
   const container = document.getElementById('action-items-list');
   container.innerHTML = '';
@@ -171,16 +174,44 @@ function renderActionItems(items) {
   }
   items.forEach((item, idx) => {
     const label = document.createElement('label');
-    label.style.display = 'block';
-    const radio = document.createElement('input');
-    radio.type = 'radio';
-    radio.name = 'action-item';
-    radio.value = item;
-    label.appendChild(radio);
-    label.appendChild(document.createTextNode(' ' + item));
+    label.style.display = 'flex';
+    label.style.alignItems = 'center';
+    label.style.gap = '8px';
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.className = 'action-checkbox';
+    checkbox.value = idx;
+    const span = document.createElement('span');
+    span.textContent = stripActionPrefix(item);
+    const delBtn = document.createElement('button');
+    delBtn.textContent = '🗑️';
+    delBtn.title = 'Delete this action item';
+    delBtn.style.marginLeft = '8px';
+    delBtn.onclick = () => deleteActionItem(idx);
+    label.appendChild(checkbox);
+    label.appendChild(span);
+    label.appendChild(delBtn);
     container.appendChild(label);
   });
 }
+function deleteActionItem(idx) {
+  chrome.storage.local.get({ actionItems: [] }, (result) => {
+    const updated = result.actionItems.filter((_, i) => i !== idx);
+    chrome.storage.local.set({ actionItems: updated }, () => {
+      renderActionItems(updated);
+    });
+  });
+}
+document.getElementById('delete-selected-actions').addEventListener('click', () => {
+  chrome.storage.local.get({ actionItems: [] }, (result) => {
+    const checkboxes = document.querySelectorAll('.action-checkbox');
+    const toDelete = Array.from(checkboxes).map((cb, i) => cb.checked ? i : -1).filter(i => i !== -1);
+    const updated = result.actionItems.filter((_, i) => !toDelete.includes(i));
+    chrome.storage.local.set({ actionItems: updated }, () => {
+      renderActionItems(updated);
+    });
+  });
+});
 
 function loadActionItems() {
   chrome.storage.local.get({ actionItems: [] }, (result) => {
@@ -190,15 +221,15 @@ function loadActionItems() {
 
 // Add Create Action Item logic
 async function callGeminiAPI(context, note, url) {
-  // Placeholder: Replace with real Gemini API call
-  // Return a promise that resolves to a generated action string
-  return new Promise(resolve => {
-    setTimeout(() => {
-      resolve(`Action: ${context} | ${note.substring(0, 30)}... | ${url}`);
-    }, 2000);
+  const response = await fetch('http://localhost:3000/gemini-action', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ context, note, url })
   });
+  if (!response.ok) throw new Error('Failed to fetch from Gemini API');
+  const data = await response.json();
+  return data.action || 'No action generated';
 }
-
 document.getElementById('create-action-btn').addEventListener('click', async () => {
   const context = document.getElementById('context-input').value.trim();
   const note = document.getElementById('note-input').value.trim();

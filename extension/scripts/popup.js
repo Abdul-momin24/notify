@@ -68,5 +68,5 @@ async function summarizeWithGemini(apiKey, notes) {
 
 
 document.getElementById('viewNotes').addEventListener('click', () => {
-  chrome.tabs.create({ url: chrome.runtime.getURL('home.html') });
+  chrome.tabs.create({ url: chrome.runtime.getURL('../pages/home.html') });
 });
