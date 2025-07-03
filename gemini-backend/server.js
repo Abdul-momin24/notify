@@ -9,22 +9,28 @@ app.use(express.json());
 
 app.post('/gemini-action', async (req, res) => {
   const { context, note, url } = req.body;
-  const prompt = `Context: ${context}
+
+  console.log("Req aagyi kyaaa ")
+  
+  try {
+    const prompt = `Context: ${context}
 Note: ${note}
 URL: ${url}
 Generate a single, concise, one-line action item (max 1 sentence) for the user, in this format:
 Action: <one-liner action item>`;
-  try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: prompt
-    });
 
-    let action = response.text.trim().replace(/\\s+/g, ' '); // Collapse all whitespace to single spaces
-// Optionally, extract only the first line or sentence if Gemini returns more
-action = action.split('\n')[0];
+    const model = ai.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
+    
+    // Extract action from the response
+    const actionMatch = text.match(/Action:\s*(.+)/i);
+    const action = actionMatch ? actionMatch[1].trim() : text.trim();
+    
     res.json({ action });
   } catch (e) {
+    console.error('Gemini API error:', e);
     res.status(500).json({ error: 'Gemini API error', details: e.message });
   }
 });

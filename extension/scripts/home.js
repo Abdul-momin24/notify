@@ -1,3 +1,7 @@
+// Remove Node.js require and use browser-based API calls
+// const GoogleGenAI = require('@google/genai');
+// const ai = new GoogleGenAI({apiKey:'AIzaSyDCV74Ius71fdKhB6_YiXeUGCII8ak_3Wg'});
+
 function renderNotes(notes) {
   const container = document.getElementById('notes');
   container.innerHTML = '';
@@ -219,42 +223,83 @@ function loadActionItems() {
   });
 }
 
-// Add Create Action Item logic
-async function callGeminiAPI(context, note, url) {
-  const response = await fetch('http://localhost:3000/gemini-action', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ context, note, url })
-  });
-  if (!response.ok) throw new Error('Failed to fetch from Gemini API');
-  const data = await response.json();
-  return data.action || 'No action generated';
+function getVisiblePageText() {
+  // Get visible text from the body (limit to 2000 chars for prompt size)
+  return document.body.innerText.slice(0, 2000);
 }
-document.getElementById('create-action-btn').addEventListener('click', async () => {
-  const context = document.getElementById('context-input').value.trim();
-  const note = document.getElementById('note-input').value.trim();
-  const url = window.location.href;
-  if (!context || !note) {
-    alert('Please enter both context and note.');
-    return;
-  }
-  const loading = document.getElementById('action-loading');
-  loading.style.display = '';
+
+// Update Create Action Item logic
+async function callGeminiAPI(context, note, url, pageData) {
+  const prompt = `Context: ${context}\nNote: ${note}\nURL: ${url}\nPage Data: ${pageData}\nGenerate a single, concise, one-line action item (max 1 sentence) for the user, in this format:\nAction: <one-liner action item> dont add the adress of extension a meaningfull task item`;
+
   try {
-    const actionTask = await callGeminiAPI(context, note, url);
-    chrome.storage.local.get({ actionItems: [] }, (result) => {
-      const updated = [...result.actionItems, actionTask];
-      chrome.storage.local.set({ actionItems: updated }, () => {
-        renderActionItems(updated);
-        showSection('actions');
-        loading.style.display = 'none';
-      });
+    const API_KEY = 'AIzaSyDCV74Ius71fdKhB6_YiXeUGCII8ak_3Wg';
+    const requestBody = {
+      contents: [{
+        parts: [{
+          text: prompt
+        }]
+      }]
+    };
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(requestBody)
     });
-  } catch (e) {
-    alert('Failed to generate action item.');
-    loading.style.display = 'none';
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
+    }
+    const data = await response.json();
+    if (!data.candidates || data.candidates.length === 0) {
+      throw new Error('No response generated from Gemini API');
+    }
+    const generatedText = data.candidates[0]?.content?.parts?.[0]?.text || 'No action generated';
+    const actionMatch = generatedText.match(/Action:\s*(.+)/i);
+    return actionMatch ? actionMatch[1].trim() : generatedText.trim();
+  } catch (error) {
+    throw new Error(`Failed to generate action item: ${error.message}`);
   }
-});
+}
+
+// Update Create Action Item button handler
+const createActionBtn = document.getElementById('create-action-btn');
+if (createActionBtn) {
+  createActionBtn.addEventListener('click', async () => {
+    const context = document.getElementById('context-input').value.trim();
+    const note = document.getElementById('note-input').value.trim();
+    const url = window.location.href;
+    const pageData = getVisiblePageText();
+
+    if (!context || !note) {
+      alert('Please enter both context and note.');
+      return;
+    }
+
+    const loading = document.getElementById('action-loading');
+    loading.style.display = '';
+    if (typeof showToast === 'function') showToast('Generating action item...');
+
+    try {
+      const actionTask = await callGeminiAPI(context, note, url, pageData);
+      chrome.storage.local.get({ actionItems: [] }, (result) => {
+        const updated = [...result.actionItems, actionTask];
+        chrome.storage.local.set({ actionItems: updated }, () => {
+          renderActionItems(updated);
+          showSection('actions');
+          loading.style.display = 'none';
+          if (typeof showToast === 'function') showToast('Action item created!');
+        });
+      });
+    } catch (e) {
+      alert(`Failed to generate action item: ${e.message}`);
+      loading.style.display = 'none';
+    }
+  });
+}
 
 // Render action items when switching to Action Items tab
 const tabActions = document.getElementById('tab-actions');

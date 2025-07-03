@@ -4,7 +4,10 @@
   "version": "1.0",
   "description": "Take notes from webpages, store with date/time, and summarize with Gemini API.",
   "permissions": ["storage", "activeTab", "scripting", "contextMenus", "system.display"],
-  "host_permissions": ["<all_urls>"],
+  "host_permissions": [
+  "<all_urls>",
+  "https://generativelanguage.googleapis.com/*"
+],
   "action": {
     "default_icon": {
       "16": "assets/icon16.webp",
