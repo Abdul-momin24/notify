@@ -1,0 +1,62 @@
+{
+  "manifest_version": 3,
+  "name": "Momin",
+  "version": "2.0.0",
+  "description": "A productivity extension with AI-powered note-taking, speech recognition, and task management.",
+
+"permissions": [
+  "storage",
+  "notifications",
+  "activeTab",
+  "scripting",
+  "clipboardWrite",
+  "tabs"
+],
+
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Floaty",
+    "default_popup_width": 400,
+    "default_popup_height": 600
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"]
+    }
+  ],
+  "commands": {
+    "toggle-dictation": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+D"
+      },
+      "description": "Start/Stop speech-to-text dictation"
+    },
+    "quick-note": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+N"
+      },
+      "description": "Open quick note-taking"
+    },
+    "read-aloud": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+S"
+      },
+      "description": "Read selected text aloud"
+    },
+    "search-notes": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+F"
+      },
+      "description": "Search notes and saved items"
+    }
+  }
+
+}
