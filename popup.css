@@ -30,44 +30,67 @@ body {
 }
 
 :root {
-  /* Light Theme Colors - matching the image */
   --bg-primary: #ffffff;
-  --bg-secondary: #f5f5f5;
-  --bg-tertiary: #e8e8e8;
-  --text-primary: #333333;
-  --text-secondary: #666666;
-  --text-muted: #999999;
-  --border-color: #d0d0d0;
-  --border-light: #e0e0e0;
-  --accent-color: #000000;
-  --accent-hover: #333333;
-  --close-btn-color: #ff4444;
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
+  --bg-secondary: #f9f9f9;
+  --bg-tertiary: #f0f0f0;
+
+    --text-primary: #111827;
+      --text-secondary: #374151;
+      --text-muted: #6b7280;
+
+  --border-color: #d1d5db;
+  --border-light: #e5e7eb;
+
+  --accent-color: #111827;
+  --accent-hover: #374151;
+  --close-btn-color: #ef4444;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
   --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
-  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.15);
+
   --radius-sm: 4px;
   --radius-md: 8px;
   --radius-lg: 12px;
   --radius-xl: 16px;
+
+
+
+      --highlight-bg: #fefce8;
+      --highlight-border: #facc15;
+      --link-color: #0ea5e9;
+    --highlight-text: #333333;
 }
 
-/* Dark Theme Colors - matching the image */
 [data-theme="dark"] {
   --bg-primary: #1a1a1a;
   --bg-secondary: #2a2a2a;
   --bg-tertiary: #3a3a3a;
-  --text-primary: #ffffff;
-  --text-secondary: #cccccc;
-  --text-muted: #888888;
-  --border-color: #404040;
-  --border-light: #333333;
+
+  --text-primary: #f4f4f5;
+    --text-secondary: #e4e4e7;
+    --text-muted: #a1a1aa;
+
+  --border-color: #4b5563;
+  --border-light: #374151;
+
   --accent-color: #ffffff;
-  --accent-hover: #cccccc;
-  --close-btn-color: #ff4444;
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.3);
-  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.3);
+  --accent-hover: #cbd5e1;
+  --close-btn-color: #f87171;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.4);
+  --highlight-bg: #2b2b2b;
+  --highlight-text: #e4e4e7;
+
+
+  
+      --highlight-bg: #3b3b2e;
+      --highlight-border: #facc15;
+      --link-color: #38bdf8;
 }
+
 
 /* body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -247,50 +270,55 @@ body {
   background: rgba(255, 68, 68, 0.1);
 }
 
-/* Tab Navigation */
+/* === Tab Navigation Container === */
 .tab-nav {
   display: flex;
-  background: rgb(233, 233, 233);
+  background: var(--bg-secondary);
   padding: 8px;
   flex-shrink: 0;
   gap: 8px;
-  border: none;
   margin: 8px 12px;
-  border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
 }
 
+/* === Tab Buttons === */
 .tab-btn {
   flex: 1;
   padding: 8px;
   border: none;
   background: transparent;
-  color: #000000;
+  color: var(--text-secondary);
   cursor: pointer;
   font-size: 13px;
   font-weight: 400;
+
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  border-radius: 5px;
+
+  border-radius: var(--radius-sm);
   position: relative;
+
+  transition: background 0.2s ease, color 0.2s ease;
 }
 
-.tab-btn svg {
-  opacity: 0.6;
-}
-
-.tab-btn:hover {
-  background: rgba(255, 255, 255, 0.5);
-}
-
+/* === Icon Styling === */
 .tab-btn svg,
 .tab-btn .tab-icon {
   opacity: 0.6;
   width: 14px;
   height: 14px;
+  stroke: currentColor;
   object-fit: contain;
+  transition: opacity 0.2s ease;
+}
+
+/* === Hover Effects === */
+.tab-btn:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
 }
 
 .tab-btn:hover svg,
@@ -298,11 +326,12 @@ body {
   opacity: 0.8;
 }
 
+/* === Active Tab === */
 .tab-btn.active {
-  background: white;
-  color: #000000;
+  background: var(--bg-primary);
+  color: var(--accent-color);
   font-weight: 500;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  box-shadow: var(--shadow-sm);
 }
 
 .tab-btn.active svg,
@@ -310,10 +339,10 @@ body {
   opacity: 1;
 }
 
+/* === Dark Mode — override only if needed === */
 [data-theme="dark"] .tab-btn.active {
-  background: transparent;
-  color: var(--text-primary);
-  border-color: transparent;
+  background: var(--bg-secondary);
+  color: var(--accent-color);
 }
 
 /* Tab Content */
@@ -404,6 +433,118 @@ body {
 .priority-medium {
   color: #1d4ed8 !important;
   border-left: 4px solid #1d4ed8 !important;
+}
+/* Container */
+
+
+.highlight-title {
+  font-weight: 600;
+  font-size: 16px;
+  margin-bottom: 6px;
+  color: var(--text-primary);
+}
+
+
+
+.highlight-item {
+  background: var(--bg-primary, #ffffff);
+  padding: 16px;
+  border-radius: var(--radius-lg, 12px);
+  border: 1px solid var(--border-color, #e5e7eb);
+  box-shadow: var(--shadow-sm, 0 1px 2px rgba(0, 0, 0, 0.05));
+  margin-bottom: 12px;
+  transition: background 0.3s ease, border 0.3s ease;
+}
+
+/* Inner Content Layout */
+.highlight-content {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Title */
+.highlight-title {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text-primary, #111827);
+  margin-bottom: 4px;
+}
+
+/* Meta (Context + Date) */
+.highlight-meta {
+  font-size: 12px;
+  color: var(--text-muted, #6b7280);
+  margin-bottom: 6px;
+}
+
+/* URL Row */
+.highlight-url-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-muted, #6b7280);
+  margin-bottom: 8px;
+}
+
+/* URL Text */
+.highlight-url {
+  cursor: pointer;
+  color: var(--link-color, #0ea5e9);
+  text-decoration: underline;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 180px;
+  display: inline-block;
+}
+
+/* Highlighted Text Box */
+.highlight-body {
+  font-size: 12px;
+  padding: 10px 12px;
+  border-radius: var(--radius-md, 8px);
+  background: var(--highlight-bg, #fef3c7);
+  border-left: 3px solid var(--highlight-border, #facc15);
+  color: var(--highlight-text, #111827);
+  line-height: 1.5;
+}
+
+/* Action Buttons Row */
+.highlight-actions {
+  display: flex;
+  justify-content: flex-start;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+/* Buttons */
+.secondary-btn {
+  background: var(--bg-secondary, #f9fafb);
+  border: 1px solid var(--border-light, #e5e7eb);
+  color: var(--text-primary, #111827);
+  padding: 6px 12px;
+  font-size: 12px;
+  border-radius: var(--radius-sm, 6px);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+}
+
+.secondary-btn:hover {
+  background: var(--bg-tertiary, #f3f4f6);
+  border-color: var(--border-color, #d1d5db);
+}
+
+/* Icons inside buttons or URLs */
+.highlight-icon {
+  width: 14px;
+  height: 14px;
+  stroke: currentColor;
+  flex-shrink: 0;
 }
 
 .priority-high {

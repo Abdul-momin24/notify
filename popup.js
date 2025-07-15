@@ -12,7 +12,7 @@ class GeminiAIService {
         return this.fallbackTitle(text, context);
       }
       
-      const prompt = `Generate a concise, descriptive title (max 50 characters) for this note${context ? ` in the context of \"${context}\"` : ""}:\n\n${text}`
+      const prompt = `Generate a concise, descriptive title (max 20 characters) for this note${context ? ` in the context of \"${context}\"` : ""}:\n\n${text}`
 
       const response = await fetch(`${this.baseUrl}?key=${this.apiKey}`, {
         method: "POST",
@@ -37,7 +37,7 @@ class GeminiAIService {
       }
 
       const data = await response.json()
-      const title = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "Untitled Note"
+      const title = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim().replace(/[\r\n]+/g, ' ') || "Untitled Note"
 
       return title.length > 50 ? title.substring(0, 47) + "..." : title
     } catch (error) {
@@ -133,7 +133,7 @@ class GeminiAIService {
 
   fallbackTitle(text, context = "") {
     // Clean the text and get first few meaningful words
-    const cleanText = text.replace(/\s+/g, ' ').trim()
+    const cleanText = text.replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim()
     const words = cleanText.split(" ").filter(word => word.length > 0).slice(0, 6)
     let title = words.join(" ")
 
@@ -157,7 +157,7 @@ class GeminiAIService {
 
   fallbackSummary(text) {
     const sentences = text.split(/[.!?]+/).filter((s) => s.trim().length > 0)
-    if (sentences.length <= 2) return "Text is already concise."
+    if (sentences.length <= 1) return "Text is already concise."
 
     return sentences[0].trim() + ". " + sentences[sentences.length - 1].trim() + "."
   }
@@ -1281,50 +1281,21 @@ class FloatyExtension {
     // Generate title using Gemini
     const title = await this.gemini.generateTitle(noteText, context)
 
-    // Extract action items using non-AI fallback for every note
+    // Only extract action items if extractTasksCheckbox is checked
     let actionItems = [];
     let extractionLog = '';
-    
-    // Always try to extract action items, regardless of checkbox
-    try {
-      console.log('[Floaty] Attempting to extract action items...')
-      
-      // Always use the non-AI fallback method
-      const extractedItems = this.gemini.fallbackActionItems(noteText);
-      console.log('[Floaty] Extracted items from fallback:', extractedItems)
-      
-      if (extractedItems && extractedItems.length > 0) {
-        actionItems = extractedItems.map(item => ({ text: item, completed: false }));
-        extractionLog = 'Non-AI fallback extracted action items: ' + JSON.stringify(actionItems);
-      } else {
-        // Fallback: split sentences and pick the first as a task
-        const sentences = noteText.split(/[.!?]+/).map(s => s.trim()).filter(Boolean);
-        console.log('[Floaty] No action items found, trying sentence fallback. Sentences:', sentences)
-        
-        if (sentences.length > 0) {
-          actionItems = [{ text: sentences[0], completed: false }];
-          extractionLog = 'Fallback to first sentence: ' + JSON.stringify(actionItems);
-        } else {
-          // Ultimate fallback: create a simple task from the note text
-          const simpleTask = noteText.length > 50 ? noteText.substring(0, 50) + '...' : noteText;
-          actionItems = [{ text: `Review: ${simpleTask}`, completed: false }];
-          extractionLog = 'Ultimate fallback task: ' + JSON.stringify(actionItems);
+    if (extractTasks && extractTasks.checked) {
+      try {
+        console.log('[Floaty] Attempting to extract action items...');
+        const extractedItems = this.gemini.fallbackActionItems(noteText);
+        console.log('[Floaty] Extracted items from fallback:', extractedItems)
+        if (extractedItems && extractedItems.length > 0) {
+          actionItems = extractedItems.map(item => ({ text: item, completed: false }));
+          extractionLog = 'Non-AI fallback extracted action items: ' + JSON.stringify(actionItems);
         }
-      }
-    } catch (error) {
-      console.error('[Floaty] Error extracting action items:', error)
-      extractionLog = 'Error extracting action items (non-AI): ' + error;
-      
-      // Fallback: split sentences and pick the first as a task
-      const sentences = noteText.split(/[.!?]+/).map(s => s.trim()).filter(Boolean);
-      if (sentences.length > 0) {
-        actionItems = [{ text: sentences[0], completed: false }];
-        extractionLog += '\nFallback action item: ' + JSON.stringify(actionItems);
-      } else {
-        // Ultimate fallback
-        const simpleTask = noteText.length > 50 ? noteText.substring(0, 50) + '...' : noteText;
-        actionItems = [{ text: `Review: ${simpleTask}`, completed: false }];
-        extractionLog += '\nUltimate fallback task: ' + JSON.stringify(actionItems);
+      } catch (error) {
+        console.error('[Floaty] Error extracting action items:', error)
+        extractionLog = 'Error extracting action items (non-AI): ' + error;
       }
     }
     
@@ -1562,10 +1533,10 @@ class FloatyExtension {
                         ${note.title}
                     </div>
                     <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 8px;">
-                        ${note.context ? note.context + ' • ' : ''}${this.formatDate(note.timestamp)}
+                        ${note.context ? note.context + ' \u2022 ' : ''}${this.formatDate(note.timestamp)}
                     </div>
                     <div style="font-size: 13px; color: var(--text-secondary); line-height: 1.4;">
-                        ${this.truncateText(note.content, 100)}
+                        ${this.truncateText(note.content, 90)}
                     </div>
                 </div>
                 <div style="margin-top: 12px; display: flex; gap: 8px;">
@@ -1626,40 +1597,62 @@ class FloatyExtension {
       return
     }
 
-    container.innerHTML = this.highlights
+    // Sort highlights by date descending (latest first)
+    const sortedHighlights = this.highlights.slice().sort((a, b) => {
+      const aTime = new Date(a.date || 0).getTime();
+      const bTime = new Date(b.date || 0).getTime();
+      return bTime - aTime;
+    });
+
+    container.innerHTML = sortedHighlights
       .map(
         (highlight) => `
             <div class="highlight-item" data-id="${highlight.id}">
-                <div class="highlight-content">
-                    <div style="font-weight: 600; margin-bottom: 6px; color: var(--text-primary);">
-                        ${highlight.title || 'Highlighted Text'}
-                    </div>
-                    <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 8px;">
-                        ${highlight.context ? highlight.context + ' • ' : ''}${this.formatDate(highlight.date)}
-                    </div>
-                    ${highlight.url ? `
-                        <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 6px; display: flex; align-items: center; gap: 4px;">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
-                                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
-                            </svg>
-                            <span class="highlight-url" style="cursor: pointer; text-decoration: underline; color: #0ea5e9;" title="${highlight.url}">${this.getDomainFromUrl(highlight.url)}</span>
-                        </div>
-                    ` : ''}
-                    <div style="font-size: 13px; color: var(--text-secondary); line-height: 1.4; background: #fff3cd; padding: 8px; border-radius: 6px; border-left: 3px solid #ffc107;">
-                        ${this.truncateText(highlight.content, 150)}
-                    </div>
-                </div>
-                <div style="margin-top: 12px; display: flex; gap: 8px;">
-                    <button class="secondary-btn delete-highlight" style="padding: 6px 12px; font-size: 12px;">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 4px;">
-                            <polyline points="3,6 5,6 21,6"></polyline>
-                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                        </svg>
-                        Delete
-                    </button>
-                </div>
-            </div>
+  <div class="highlight-content">
+    <!-- Title -->
+    <div class="highlight-title">
+      ${highlight.title || 'Highlighted Text'}
+    </div>
+
+    <!-- Context + Date -->
+    <div class="highlight-meta">
+      ${highlight.context ? highlight.context + ' \u2022 ' : ''}${this.formatDate(highlight.date)}
+    </div>
+
+    <!-- URL -->
+    ${
+      highlight.url
+        ? `
+      <div class="highlight-url">
+        <svg class="highlight-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+          <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+        </svg>
+        <span class="highlight-url-link" title="${highlight.url}">
+          ${this.getDomainFromUrl(highlight.url)}
+        </span>
+      </div>`
+        : ''
+    }
+
+    <!-- Highlight Body -->
+    <div class="highlight-body">
+      ${this.truncateText(highlight.content, 90)}
+    </div>
+  </div>
+
+  <!-- Action Buttons -->
+  <div class="highlight-actions">
+    <button class="secondary-btn delete-highlight">
+      <svg class="highlight-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="3,6 5,6 21,6"></polyline>
+        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+      </svg>
+      Delete
+    </button>
+  </div>
+</div>
+
         `
       )
       .join("")
@@ -1709,8 +1702,13 @@ class FloatyExtension {
       })
     })
 
-    // Generate HTML for each saved item
-    const htmlContent = this.savedItems
+    // In renderSavedItems, sort savedItems by savedAt descending before mapping
+    const sortedItems = this.savedItems.slice().sort((a, b) => {
+      const aTime = new Date(a.savedAt || a.date || 0).getTime();
+      const bTime = new Date(b.savedAt || b.date || 0).getTime();
+      return bTime - aTime;
+    });
+    const htmlContent = sortedItems
       .map(
         (item) => {
           console.log(`[Floaty] Processing action items for item ${item.id}:`, {
@@ -1736,33 +1734,19 @@ class FloatyExtension {
                   `).join('')}
                 </div>
               </div>`
-            : `<div style="margin-top: 14px; padding: 10px 12px; background: #e0f2fe; border: 2px solid #0ea5e9; border-radius: 8px; font-size: 13px;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                  <span style="font-weight: 600; color: #0ea5e9; letter-spacing: 0.01em;">✅ Action Items (1)</span>
-                  <button class="add-action-item-btn" data-item-id="${item.id}" style="background: none; border: none; color: var(--accent-color); cursor: pointer; padding: 4px 8px; font-size: 11px; border-radius: 4px;">+ Add Item</button>
-                </div>
-                <div style="margin: 4px 0 0 0; color: var(--text-primary);">
-                  <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px; padding: 4px 0; border-radius: 4px;">
-                    <input type="checkbox" class="action-item-checkbox" data-item-id="${item.id}" data-task-index="0" style="width: 16px; height: 16px; cursor: pointer; accent-color: var(--accent-color);">
-                    <span class="action-item-text" data-item-id="${item.id}" data-task-index="0" style="cursor: pointer; flex: 1; font-size: 13px;">TEST ACTION ITEM - This should be visible</span>
-                    <button class="action-item-edit-btn" data-item-id="${item.id}" data-task-index="0" style="background: none; border: none; color: var(--accent-color); cursor: pointer; padding: 4px; font-size: 12px; opacity: 0.7; border-radius: 3px;">✏️</button>
-                    <button class="action-item-delete-btn" data-item-id="${item.id}" data-task-index="0" style="background: none; border: none; color: #ef4444; cursor: pointer; padding: 4px; font-size: 12px; opacity: 0.7; border-radius: 3px;">🗑️</button>
-                  </div>
-                </div>
-              </div>`;
+            : '';
           
           console.log(`[Floaty] Generated action items HTML for item ${item.id}:`, actionItemsHtml.substring(0, 200) + '...');
 
           return `
             <div class="saved-note-clean" data-id="${item.id}" style="background: var(--bg-primary); border-radius: 18px; padding: 24px 28px 20px 28px; margin-bottom: 28px; border: 1px solid var(--border-color); box-shadow: none;">
-              <div style="font-size: 1.22rem; font-weight: 700; color: var(--text-primary); margin-bottom: 6px; letter-spacing: 0.01em;">${item.title}</div>
-              <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; font-size: 12.5px; color: var(--text-muted);">
+              <div style="font-size: 1.5rem; font-weight: 700; color: var(--text-primary); margin-bottom: 6px; letter-spacing: 0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${item.title}</div>
+              <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; font-size: 12.5px; color: var(--text-muted);">
                 ${item.context ? `<span style='background: var(--bg-tertiary); color: var(--text-secondary); border-radius: 6px; padding: 2px 10px; font-size: 11.5px;'>${item.context}</span>` : ''}
                 <span>${this.formatDate(item.savedAt)}</span>
                 ${item.url ? `<span style='display: flex; align-items: center; gap: 3px;'><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg><span class="note-url" style="cursor: pointer; text-decoration: underline; color: #0ea5e9;" title="${item.url}">${this.getDomainFromUrl(item.url)}</span></span>` : ''}
               </div>
-              <div style="background: var(--bg-tertiary); border-radius: 12px; padding: 18px 16px 16px 16px; color: var(--text-primary); font-size: 14.5px; line-height: 1.7; margin-bottom: 12px; word-break: break-word;">${item.content}</div>
-              ${item.summary ? `<div style="margin-top: 10px; padding: 12px 14px; background: linear-gradient(135deg, #6366f1 0%, #3b82f6 100%); color: #fff; border-radius: 10px; font-size: 13px; font-weight: 500;"><span style="font-size: 12px; font-weight: 600; letter-spacing: 0.01em;">AI Summary:</span><br>${item.summary}</div>` : ''}
+              <div style="background: var(--bg-tertiary); border-radius: 12px; padding: 18px 16px 16px 16px; color: var(--text-primary); font-size: 14.5px; line-height: 1.7; margin-bottom: 12px; word-break: break-word;">${this.truncateText(item.content, 90)}</div>
               ${actionItemsHtml}
             </div>
           `;
@@ -1939,36 +1923,50 @@ class FloatyExtension {
       .map(
         (highlight) => `
             <div class="highlight-item" data-id="${highlight.id}">
-                <div class="highlight-content">
-                    <div style="font-weight: 600; margin-bottom: 6px; color: var(--text-primary);">
-                        ${highlight.title || 'Highlighted Text'}
-                    </div>
-                    <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 8px;">
-                        ${highlight.context ? highlight.context + ' • ' : ''}${this.formatDate(highlight.date)}
-                    </div>
-                    ${highlight.url ? `
-                        <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 6px; display: flex; align-items: center; gap: 4px;">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
-                                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
-                            </svg>
-                            <span class="highlight-url" style="cursor: pointer; text-decoration: underline; color: #0ea5e9;" title="${highlight.url}">${this.getDomainFromUrl(highlight.url)}</span>
-                        </div>
-                    ` : ''}
-                    <div style="font-size: 13px; color: var(--text-secondary); line-height: 1.4; background: #fff3cd; padding: 8px; border-radius: 6px; border-left: 3px solid #ffc107;">
-                        ${this.truncateText(highlight.content, 150)}
-                    </div>
-                </div>
-                <div style="margin-top: 12px; display: flex; gap: 8px;">
-                    <button class="secondary-btn delete-highlight" style="padding: 6px 12px; font-size: 12px;">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 4px;">
-                            <polyline points="3,6 5,6 21,6"></polyline>
-                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                        </svg>
-                        Delete
-                    </button>
-                </div>
-            </div>
+  <div class="highlight-content">
+    
+    <!-- Title -->
+    <div class="highlight-title">
+      ${highlight.title || 'Highlighted Text'}
+    </div>
+
+    <!-- Context and Date -->
+    <div class="highlight-meta">
+      ${highlight.context ? highlight.context + ' \u2022 ' : ''}${this.formatDate(highlight.date)}
+    </div>
+
+    <!-- Source URL -->
+    ${highlight.url ? `
+    <div class="highlight-url-row">
+      <svg class="highlight-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+      </svg>
+      <span class="highlight-url" title="${highlight.url}">
+        ${this.getDomainFromUrl(highlight.url)}
+      </span>
+    </div>` : ''}
+
+    <!-- Highlighted Text -->
+    <div class="highlight-body">
+      ${this.truncateText(highlight.content, 90)}
+    </div>
+  </div>
+
+  <!-- Footer Buttons -->
+  <div class="highlight-actions">
+    <button class="secondary-btn delete-highlight">
+      <svg class="highlight-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="3,6 5,6 21,6"></polyline>
+        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+      </svg>
+      Delete
+    </button>
+  </div>
+
+  <hr />
+</div>
+
         `
       )
       .join("")
@@ -2384,7 +2382,7 @@ class FloatyExtension {
         </div>
       ` : ''}
       <div style="font-size: 15px; color: #222; margin-bottom: 18px; white-space: pre-wrap;">${note.content || note.text || ''}</div>
-      ${actionItemsHTML}
+      ${note.actionItems && note.actionItems.length > 0 ? actionItemsHTML : ''}
       ${summaryHTML}
       <div style="margin-top: 16px; display: flex; gap: 8px; justify-content: center;">
         ${!note.summary ? `<button id="generateSummaryBtn" style="padding: 8px 16px; background: linear-gradient(135deg, #8b5cf6 0%, #3b82f6 100%); color: white; border: none; border-radius: 6px; font-size: 14px; cursor: pointer;">Generate AI Summary</button>` : ''}

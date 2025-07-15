@@ -508,7 +508,6 @@ class FloatyContentScript {
 
       .floaty-btn-text {
         white-space: nowrap;
-        overflow: hidden;
         text-overflow: ellipsis;
         max-width: 48px;
         display: inline-block;
@@ -564,55 +563,39 @@ class FloatyContentScript {
         this.showNotification('No text selected to save', 'error');
         return;
       }
-      
-      // Check if extension context is still valid
       if (!this.isExtensionContextValid()) {
         this.showNotification('Extension context invalid. Please refresh the page.', 'error');
         return;
       }
-      
-      // Always extract tasks, but always save
+      let title = this.currentPageTitle || 'Untitled Note';
+      if (geminiAIService && geminiAIService.apiKey) {
+        try {
+          let aiTitle = await geminiAIService.generateTitle(this.selectedText, '');
+          if (aiTitle.length > 15) aiTitle = aiTitle.substring(0, 12) + '...';
+          title = aiTitle;
+        } catch (e) {
+          // fallback to page title
+        }
+      }
       chrome.runtime.sendMessage({
-        action: 'detectTasks',
+        action: 'saveSelectedText',
         text: this.selectedText,
         url: this.currentUrl,
-        title: this.currentPageTitle,
+        title: title,
         context: ''
-      }, (taskResponse) => {
+      }, (saveResponse) => {
         if (chrome.runtime.lastError) {
-          console.error('Floaty: Runtime error detecting tasks:', chrome.runtime.lastError);
-          this.showNotification('Failed to detect tasks: ' + chrome.runtime.lastError.message, 'error');
+          console.error('Floaty: Runtime error saving text:', chrome.runtime.lastError);
+          this.showNotification('Failed to save text: ' + chrome.runtime.lastError.message, 'error');
           return;
         }
-        
-        // Ensure tasks are objects with a 'text' property
-        const tasks = (taskResponse && taskResponse.success && Array.isArray(taskResponse.tasks))
-          ? taskResponse.tasks.map(t => typeof t === 'string' ? { text: t } : t)
-          : [];
-        
-        // Always save, with or without tasks
-        chrome.runtime.sendMessage({
-          action: 'saveSelectedText',
-          text: this.selectedText,
-          url: this.currentUrl,
-          title: this.currentPageTitle,
-          context: '',
-          tasks: tasks
-        }, (saveResponse) => {
-          if (chrome.runtime.lastError) {
-            console.error('Floaty: Runtime error saving text:', chrome.runtime.lastError);
-            this.showNotification('Failed to save text: ' + chrome.runtime.lastError.message, 'error');
-            return;
-          }
-          
-          if (saveResponse && saveResponse.success) {
-            this.showNotification('Text saved successfully!', 'success');
-          } else {
-            this.showNotification('Failed to save text', 'error');
-          }
-        });
-        this.hidePopup();
+        if (saveResponse && saveResponse.success) {
+          this.showNotification('Text saved successfully!', 'success');
+        } else {
+          this.showNotification('Failed to save text', 'error');
+        }
       });
+      this.hidePopup();
     } catch (error) {
       console.error('Floaty: Error in saveToNotes:', error);
       this.showNotification('Failed to save: ' + error.message, 'error');
@@ -1078,6 +1061,17 @@ if (typeof chrome !== 'undefined' && chrome.runtime) {
       }
     })
   }, 1000)
+}
+
+// Add GeminiAIService class definition from popup.js here or import if modularized
+// For now, instantiate GeminiAIService directly in content.js
+
+// At the top of content.js (after other code or imports):
+let geminiAIService;
+if (typeof GeminiAIService !== 'undefined') {
+  geminiAIService = new GeminiAIService();
+} else {
+  // Paste GeminiAIService class definition here if not available globally
 }
 
 new FloatyContentScript() 
